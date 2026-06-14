@@ -15,7 +15,11 @@ module blackboard  (
 		output [9:0] led_g,
 
 		// RGB LEDs
-		output [5:0] led_rgb
+		output [5:0] led_rgb,
+
+		// 7-segment Display
+		output [3:0] sseg_a,
+		output [7:0] sseg_c
 	);
 
 	// ------------------------------------------------------------------------
@@ -33,22 +37,38 @@ module blackboard  (
 	// Note: the integer'() casts are important, without them Vivado
 	// generates incorrect counter widths (much wider than expected)
 	//
-	// 10 LEDs driven by 100MHz
-	localparam integer WIDTH =
-		$clog2(integer'(CLK_FREQUENCY*BLINK_PERIOD))+9;
+	// Width to LSB at 100MHz
+	localparam integer MIN_WIDTH =
+		$clog2(integer'(CLK_FREQUENCY*BLINK_PERIOD));
+
+	// LED width
+	localparam integer LED_WIDTH = 10;
+
+	// Segment width (4 displays, 4-bits per display)
+	localparam integer SEG_WIDTH = 16;
+
+	// Counter width
+	localparam integer CNT_WIDTH =
+		MIN_WIDTH + ((LED_WIDTH > SEG_WIDTH) ? LED_WIDTH : SEG_WIDTH);
 
 	// ------------------------------------------------------------------------
 	// Internal Signals
 	// ------------------------------------------------------------------------
 	//
 	// Counter
-	logic [WIDTH-1:0] count = '0;
+	logic [CNT_WIDTH-1:0] count = '0;
 
 	// RGB duty-cycle control
 	logic       rgb_duty;
 	logic [4:0] rgb_count;
 	logic [5:0] rgb_en;
 	logic [5:0] rgb_control;
+
+	// 7-segment hex display multiplexed hex digit
+	logic [1:0] hex_select;
+	logic [3:0] hex_enable;
+	logic [3:0] hex_value;
+	logic       hex_dp;
 
 	// ------------------------------------------------------------------------
 	// Counter
@@ -62,7 +82,7 @@ module blackboard  (
 	// Green LEDs
 	// ------------------------------------------------------------------------
 	//
-	assign led_g = count[WIDTH-1:WIDTH-10];
+	assign led_g = count[MIN_WIDTH +: LED_WIDTH];
 
 	// ------------------------------------------------------------------------
 	// RGB LEDs
@@ -95,7 +115,7 @@ module blackboard  (
 	//   5'b111-xx = blue + green + red + count 0 to 3
 	//
 	// Counter 5-bits aligned with the green LED LSB
-	assign rgb_count = count[WIDTH-6:WIDTH-10];
+	assign rgb_count = count[MIN_WIDTH +: 5];
 
 	// RGB LED enables
 	assign rgb_en = {{3{rgb_count[1]}}, {3{rgb_count[0]}}};
@@ -105,6 +125,56 @@ module blackboard  (
 
    	// Duty-cycled RGB output
     assign led_rgb = rgb_duty ? rgb_control : 6'h000;
+
+	// ------------------------------------------------------------------------
+	// 7-Segment Display
+	// ------------------------------------------------------------------------
+	//
+	// Segments are enabled via a logic low
+	//
+	// Multiplex 4 segments at about 2^8 = 256 Hz
+	assign hex_select = count[MIN_WIDTH-8 +:2];
+
+	always_comb begin
+        case (hex_select)
+            2'h0:
+            	begin
+	            	hex_enable = 4'b1110;
+	            	hex_value  = count[MIN_WIDTH +: 4];
+	            	hex_dp     = ~count[MIN_WIDTH];
+	            end
+            2'h1:
+            	begin
+	            	hex_enable = 4'b1101;
+	            	hex_value  = count[(MIN_WIDTH+4) +: 4];
+	            	hex_dp     = ~count[MIN_WIDTH+1];
+	            end
+            2'h2:
+            	begin
+	            	hex_enable = 4'b1011;
+	            	hex_value  = count[(MIN_WIDTH+8) +: 4];
+	            	hex_dp     = ~count[MIN_WIDTH+2];
+	            end
+            default:
+            	begin
+            		hex_enable = 4'b0111;
+	            	hex_value  = count[(MIN_WIDTH+12) +: 4];
+	            	hex_dp     = ~count[MIN_WIDTH+3];
+	            end
+        endcase
+	end
+
+	// Anode control
+	assign sseg_a = hex_enable;
+
+	// Cathode control
+	hex_display u1 (
+        .hex     (hex_value  ),
+        .display (sseg_c[6:0])
+    );
+
+	// Decimal point
+	assign sseg_c[7] = hex_dp;
 
 endmodule
 
