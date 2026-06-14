@@ -143,7 +143,8 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
 # HDL source list
 set filenames {}
 
-# 7-segment hex display
+# 4 x 7-segment hex display
+lappend filenames $ip/hex_display/src/hex_display_mux.sv
 lappend filenames $ip/hex_display/src/hex_display.sv
 
 # Top-level design

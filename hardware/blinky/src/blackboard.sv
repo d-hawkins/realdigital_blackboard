@@ -66,7 +66,6 @@ module blackboard  (
 
 	// 7-segment hex display multiplexed hex digit
 	logic [1:0] hex_select;
-	logic [3:0] hex_enable;
 	logic [3:0] hex_value;
 	logic       hex_dp;
 
@@ -127,54 +126,32 @@ module blackboard  (
     assign led_rgb = rgb_duty ? rgb_control : 6'h000;
 
 	// ------------------------------------------------------------------------
-	// 7-Segment Display
+	// Multiplexed 4-Digit 7-Segment Display
 	// ------------------------------------------------------------------------
 	//
-	// Segments are enabled via a logic low
-	//
-	// Multiplex 4 segments at about 2^8 = 256 Hz
+	// Multiplex the 4 segments at about 2^8 = 256 Hz
 	assign hex_select = count[MIN_WIDTH-8 +:2];
 
-	always_comb begin
-        case (hex_select)
-            2'h0:
-            	begin
-	            	hex_enable = 4'b1110;
-	            	hex_value  = count[MIN_WIDTH +: 4];
-	            	hex_dp     = ~count[MIN_WIDTH];
-	            end
-            2'h1:
-            	begin
-	            	hex_enable = 4'b1101;
-	            	hex_value  = count[(MIN_WIDTH+4) +: 4];
-	            	hex_dp     = ~count[MIN_WIDTH+1];
-	            end
-            2'h2:
-            	begin
-	            	hex_enable = 4'b1011;
-	            	hex_value  = count[(MIN_WIDTH+8) +: 4];
-	            	hex_dp     = ~count[MIN_WIDTH+2];
-	            end
-            default:
-            	begin
-            		hex_enable = 4'b0111;
-	            	hex_value  = count[(MIN_WIDTH+12) +: 4];
-	            	hex_dp     = ~count[MIN_WIDTH+3];
-	            end
-        endcase
-	end
+	// Hex display multiplexer
+	hex_display_mux #(
+		.NWIDTH(4)
+	) u1 (
+        .sel    (hex_select            ),
+        .data_i (count[MIN_WIDTH +: 16]),
+        .dp_i   (count[MIN_WIDTH +: 4] ),
+		.an_o   (sseg_a                ),
+        .data_o (hex_value             ),
+        .dp_o   (hex_dp                )
+    );
 
-	// Anode control
-	assign sseg_a = hex_enable;
-
-	// Cathode control
-	hex_display u1 (
+	// Hex display decode
+	hex_display u2 (
         .hex     (hex_value  ),
         .display (sseg_c[6:0])
     );
 
-	// Decimal point
-	assign sseg_c[7] = hex_dp;
+	// Hex display decimal point (active low)
+	assign sseg_c[7] = ~hex_dp;
 
 endmodule
 
