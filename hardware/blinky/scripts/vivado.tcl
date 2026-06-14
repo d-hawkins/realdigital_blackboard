@@ -97,6 +97,9 @@ set designs [file join {*}[lrange $path 0 [expr {$len - 2}]]]
 set src     $designs/$project(name)/src
 set scripts $designs/$project(name)/scripts
 
+# IP
+set ip      $designs/ip
+
 # -----------------------------------------------------------------------------
 # Vivado project
 # -----------------------------------------------------------------------------
@@ -139,6 +142,9 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
 
 # HDL source list
 set filenames {}
+
+# 7-segment hex display
+lappend filenames $ip/hex_display/src/hex_display.sv
 
 # Top-level design
 lappend filenames $src/blackboard.sv
