@@ -147,7 +147,7 @@ proc apply_false_paths {{inputs {}} {outputs {}}} {
 	#
 	# Asynchronous ports list
 	set names [list \
-		{led_g[*]} {led_rgb[*]} uart_txd \
+		{led_g[*]} {led_rgb[*]} {sseg_a[*]} {sseg_c[*]} uart_txd \
 	]
 
 	# Additional outputs
